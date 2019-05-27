@@ -74,11 +74,11 @@ message BinaryStatistics {
   optional sint64 sum = 1;
 }
 
-// Statistics for list and map
+// ORC-398: Statistics for list and map
 message CollectionStatistics {
-  optional uint64 minimum = 1;
-  optional uint64 maximum = 2;
-  optional uint64 sum = 3;
+  optional uint64 minCollectionLength = 1;
+  optional uint64 maxCollectionLength = 2;
+  optional uint64 childCount = 3;
 }
 
 message ColumnStatistics {

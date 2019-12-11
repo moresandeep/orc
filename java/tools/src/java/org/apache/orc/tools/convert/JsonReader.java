@@ -128,12 +128,27 @@ public class JsonReader implements RecordReader {
         vect.isNull[row] = true;
       } else {
         BytesColumnVector vector = (BytesColumnVector) vect;
-        String binStr = value.getAsString();
-        byte[] bytes = new byte[binStr.length()/2];
-        for(int i=0; i < bytes.length; ++i) {
-          bytes[i] = (byte) Integer.parseInt(binStr.substring(i*2, i*2+2), 16);
+        String binStr;
+        //binStr = value.getAsString();
+        /* prevent IllegalStateException */
+        if(value instanceof JsonArray) {
+          final Iterator iterator = ((JsonArray) value).iterator();
+          byte[] bytes = new byte[((JsonArray)value).size()];
+          int i = 0;
+          while(iterator.hasNext()) {
+            final JsonElement element = (JsonElement)iterator.next();
+            bytes[i] = (byte) Integer.parseInt(element.getAsString(), 16);
+            i++;
+          }
+          vector.setRef(row, bytes, 0, bytes.length);
+        }else {
+           binStr = value.getAsString();
+          byte[] bytes = new byte[binStr.length()/2];
+          for(int i=0; i < bytes.length; ++i) {
+            bytes[i] = (byte) Integer.parseInt(binStr.substring(i*2, i*2+2), 16);
+          }
+          vector.setRef(row, bytes, 0, bytes.length);
         }
-        vector.setRef(row, bytes, 0, bytes.length);
       }
     }
   }
@@ -243,18 +258,44 @@ public class JsonReader implements RecordReader {
         vect.isNull[row] = true;
       } else {
         MapColumnVector vector = (MapColumnVector) vect;
-        JsonObject obj = value.getAsJsonObject();
-        vector.lengths[row] = obj.entrySet().size();
-        vector.offsets[row] = vector.childCount;
-        vector.childCount += vector.lengths[row];
-        vector.keys.ensureSize(vector.childCount, true);
-        vector.values.ensureSize(vector.childCount, true);
-        int cnt = 0;
-        for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
-          int offset = (int) vector.offsets[row] + cnt++;
-          keyConverter.convert(new JsonPrimitive(entry.getKey()), vector.keys, offset);
-          valueConverter.convert(entry.getValue(), vector.values, offset);
+        //FIXME how to deal with empty array
+        /* if we have empty map then JsonStreamReader will convert it to JsonArray */
+        /* for multi maps */
+        //if(value instanceof JsonArray && ((JsonArray)value).size() == 0 ) {
+        if(value instanceof JsonArray) {
+          final Iterator iterator = ((JsonArray) value).iterator();
+          while(iterator.hasNext()) {
+            final JsonElement element = (JsonElement)iterator.next();
+            final JsonObject obj = element.getAsJsonObject();
+            //FIXME code duplication
+            vector.lengths[row] = obj.entrySet().size();
+            vector.offsets[row] = vector.childCount;
+            vector.childCount += vector.lengths[row];
+            vector.keys.ensureSize(vector.childCount, true);
+            vector.values.ensureSize(vector.childCount, true);
+            int cnt = 0;
+            for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
+              int offset = (int) vector.offsets[row] + cnt++;
+              keyConverter.convert(new JsonPrimitive(entry.getKey()), vector.keys, offset);
+              valueConverter.convert(entry.getValue(), vector.values, offset);
+            }
+          }
+        } else {
+          JsonObject obj = value.getAsJsonObject();
+          vector.lengths[row] = obj.entrySet().size();
+          vector.offsets[row] = vector.childCount;
+          vector.childCount += vector.lengths[row];
+          vector.keys.ensureSize(vector.childCount, true);
+          vector.values.ensureSize(vector.childCount, true);
+          int cnt = 0;
+          for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
+            int offset = (int) vector.offsets[row] + cnt++;
+            keyConverter.convert(new JsonPrimitive(entry.getKey()), vector.keys, offset);
+            valueConverter.convert(entry.getValue(), vector.values, offset);
+          }
         }
+
+
       }
     }
   }

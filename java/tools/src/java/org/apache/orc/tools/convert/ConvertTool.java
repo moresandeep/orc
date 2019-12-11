@@ -93,7 +93,7 @@ public class ConvertTool {
     JSON, CSV, ORC
   }
 
-  class FileInformation {
+  public class FileInformation {
     private final Compression compression;
     private final Format format;
     private final Path path;
@@ -207,6 +207,14 @@ public class ConvertTool {
       reader.close();
     }
     writer.close();
+  }
+
+  public TypeDescription getSchema() {
+    return schema;
+  }
+
+  public VectorizedRowBatch getBatch() {
+    return batch;
   }
 
   private static int getIntOption(CommandLine opts, char letter, int mydefault) {
